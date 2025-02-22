@@ -1,5 +1,5 @@
 blueprint:
-  name: Licht über Bewegungsmelder
+  name: Licht über Bewegungsmelder (Szenen)
   description: >
     Controls lights based on motion detection from one or more motion sensors.
     Lights turn on when motion is detected and turn off after a specified duration
