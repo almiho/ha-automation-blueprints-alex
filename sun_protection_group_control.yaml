@@ -1,0 +1,71 @@
+blueprint:
+  name: Sonnenschutz-Gruppensteuerung
+  description: >-
+    Steuerung der Jalousien für eine einzelne Gruppe (z. B. Ost, Süd oder West)
+    je nach Gruppenstatus. Der globale Schalter ist `input_boolean.jalousien_sonnenschutz`, und
+    die Zielposition wird über `input_number.sonnenschutz_jalousien_zielposition` gesteuert.
+  domain: automation
+  input:
+    group_name:
+      name: Gruppenname
+      description: Der Name der Sonnenschutzgruppe (z. B. Ost, Süd, West) zur Dokumentation.
+    group_status:
+      name: Gruppenstatus
+      description: Der Boolean-Schalter, der den Status der Gruppe anzeigt (aktiv/inaktiv).
+      selector:
+        entity:
+          filter:
+            domain: input_boolean
+    cover_entity:
+      name: Jalousien der Gruppe
+      description: Die Jalousien, die zu dieser Gruppe gehören.
+      selector:
+        entity:
+          filter:
+            domain: cover
+
+trace:
+  stored_traces: 30
+
+trigger:
+  # Global switch, group status, or target position changes
+  - trigger: state
+    entity_id: input_boolean.jalousien_sonnenschutz
+  - trigger: state
+    entity_id: !input group_status
+  - trigger: state
+    entity_id: input_number.sonnenschutz_jalousien_zielposition
+
+condition:
+  # Global condition: Only proceed if the global switch is ON
+  - condition: state
+    entity_id: input_boolean.jalousien_sonnenschutz
+    state: "on"
+
+action:
+  - alias: Steuerung der Jalousien basierend auf Gruppenstatus
+    choose:
+      # Set the cover position if the group is active
+      - conditions:
+          - condition: state
+            entity_id: !input group_status
+            state: "on"
+        sequence:
+          - alias: Jalousien auf Zielposition setzen
+            data:
+              position: "{{ states('input_number.sonnenschutz_jalousien_zielposition') | int }}"
+            target:
+              entity_id: !input cover_entity
+            action: cover.set_cover_position
+
+      # Open the cover if the group is inactive
+      - conditions:
+          - condition: state
+            entity_id: !input group_status
+            state: "off"
+        sequence:
+          - alias: Jalousien öffnen
+            data: {}
+            target:
+              entity_id: !input cover_entity
+            action: cover.open_cover

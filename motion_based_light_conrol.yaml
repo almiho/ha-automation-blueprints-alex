@@ -1,0 +1,69 @@
+blueprint:
+  name: Licht über Bewegungsmelder
+  description: >
+    Controls lights based on motion detection from one or more motion sensors.
+    Lights turn on when motion is detected and turn off after a specified duration
+    since the last motion was detected
+
+  domain: automation
+  input:
+    motion_sensors:
+      name: Motion Sensors
+      description: Select one or more motion sensors.
+      selector:
+        entity:
+          multiple: true # Allows selecting multiple motion sensors
+          filter:
+            domain: binary_sensor
+            device_class: motion
+
+    light_on_scene:
+      name: Light On Scene
+      description: Scene to activate when motion is detected.
+      selector:
+        entity:
+          filter:
+            domain: scene
+
+    light_off_scene:
+      name: Light Off Scene
+      description: Scene to activate when no motion is detected for the specified duration.
+      selector:
+        entity:
+          filter:
+            domain: scene
+
+    wait_duration:
+      name: Wait Duration
+      description: Time to wait after the last motion is detected before turning off the lights.
+      default: 00:01:00
+      selector:
+        duration:
+
+mode: restart
+trace:
+  stored_traces: 30
+
+triggers:
+  - trigger: state
+    alias: "Motion Detected"
+    entity_id: !input motion_sensors
+    to: "on"
+
+actions:
+  - alias: "Turn On Scene"
+    action: scene.turn_on
+    target:
+      entity_id: !input light_on_scene
+
+  - wait_for_trigger:
+      - trigger: state
+        alias: "Wait for No Motion"
+        entity_id: !input motion_sensors
+        to: "off"
+        for: !input wait_duration
+
+  - alias: "Turn Off Scene"
+    action: scene.turn_on
+    target:
+      entity_id: !input light_off_scene

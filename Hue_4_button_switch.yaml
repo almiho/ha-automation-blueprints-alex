@@ -1,0 +1,109 @@
+blueprint:
+  name: Hue Four-Button "Dim-Switch"
+  description: >
+    A blueprint for a Hue four-button "dim switch". 
+    - Buttons 1-3 activate scenes.
+    - Button 4 turns off lights in selected areas.
+  domain: automation
+  input:
+    switch_1:
+      name: Button 1 Entity
+      description: The entity ID of the first button.
+      selector:
+        entity:
+    scenes_button_1:
+      name: Scenes for Button 1
+      description: Scenes to activate when Button 1 is pressed.
+      selector:
+        target:
+          entity:
+            domain: scene
+
+    switch_2:
+      name: Button 2 Entity
+      description: The entity ID of the second button.
+      selector:
+        entity:
+    scenes_button_2:
+      name: Scenes for Button 2
+      description: Scenes to activate when Button 2 is pressed.
+      selector:
+        target:
+          entity:
+            domain: scene
+
+    switch_3:
+      name: Button 3 Entity
+      description: The entity ID of the third button.
+      selector:
+        entity:
+    scenes_button_3:
+      name: Scenes for Button 3
+      description: Scenes to activate when Button 3 is pressed.
+      selector:
+        target:
+          entity:
+            domain: scene
+
+    switch_4:
+      name: Button 4 Entity
+      description: The entity ID of the fourth button.
+      selector:
+        entity:
+    areas_button_4:
+      name: Areas for Button 4
+      description: Areas to turn off lights when Button 4 is pressed.
+      selector:
+        area:
+          multiple: true
+
+trigger:
+  - trigger: state
+    id: button_1_pressed
+    entity_id: !input switch_1
+  - trigger: state
+    id: button_2_pressed
+    entity_id: !input switch_2
+  - trigger: state
+    id: button_3_pressed
+    entity_id: !input switch_3
+  - trigger: state
+    id: button_4_pressed
+    entity_id: !input switch_4
+
+condition: []
+
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: button_1_pressed
+        sequence:
+          - action: scene.turn_on
+            target: !input scenes_button_1
+
+      - conditions:
+          - condition: trigger
+            id: button_2_pressed
+        sequence:
+          - action: scene.turn_on
+            target: !input scenes_button_2
+
+      - conditions:
+          - condition: trigger
+            id: button_3_pressed
+        sequence:
+          - action: scene.turn_on
+            target: !input scenes_button_3
+
+      - conditions:
+          - condition: trigger
+            id: button_4_pressed
+        sequence:
+          - action: light.turn_off
+            data:
+              transition: 2
+            target:
+              area_id: !input areas_button_4
+
+mode: single

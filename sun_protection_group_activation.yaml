@@ -1,0 +1,114 @@
+blueprint:
+  name: Sonnenschutz-Gruppenaktivierung
+  description: Steuert die Sonnenschutzgruppe (Ost, Süd oder West) nach Sonnenstand und globaler Mindesthöhe.
+  domain: automation
+  input:
+    group_name:
+      name: Gruppenname
+      description: Der Name der Sonnenschutzgruppe (z. B. Ost, Süd, West).
+    sun_protection_boolean:
+      name: Sonnenschutz Aktivierungs-Boolean
+      description: Das `input_boolean`, das anzeigt, ob die Sonnenschutzgruppe aktiv ist.
+      selector:
+        entity:
+          filter:
+            domain: input_boolean
+    azimuth_start:
+      name: Startwinkel (Azimut)
+      description: Der Azimutwert, ab dem die Gruppe aktiviert wird.
+      selector:
+        number:
+          min: 0
+          max: 360
+          step: 1
+    azimuth_end:
+      name: Endwinkel (Azimut)
+      description: Der Azimutwert, ab dem die Gruppe deaktiviert wird.
+      selector:
+        number:
+          min: 0
+          max: 360
+          step: 1
+
+trace:
+  stored_traces: 30
+
+variables:
+  azimuth_start_var: !input azimuth_start
+  azimuth_end_var: !input azimuth_end
+  min_elevation_var: "{{ states('input_number.sonnenschutz_min_elevation') | float }}"
+
+triggers:
+  # Trigger when elevation goes above the minimum
+  - trigger: numeric_state
+    alias: "Elevation überschreitet Minimum"
+    entity_id: sun.sun
+    attribute: elevation
+    above: input_number.sonnenschutz_min_elevation
+    id: elevation_above_min
+
+  # Trigger when elevation drops below the minimum
+  - trigger: numeric_state
+    alias: "Elevation unterschreitet Minimum"
+    entity_id: sun.sun
+    attribute: elevation
+    below: input_number.sonnenschutz_min_elevation
+    id: elevation_below_min
+
+  # Trigger when azimuth enters the range
+  - trigger: numeric_state
+    alias: "Azimut betritt Bereich"
+    entity_id: sun.sun
+    attribute: azimuth
+    above: !input azimuth_start
+    below: !input azimuth_end
+    id: azimuth_in_range
+
+  # Trigger when azimuth is outside the range
+  - trigger: numeric_state
+    alias: "Azimut unter Minimum"
+    entity_id: sun.sun
+    attribute: azimuth
+    below: !input azimuth_start
+    id: azimuth_below_start
+
+  - trigger: numeric_state
+    alias: "Azimut über Maximum"
+    entity_id: sun.sun
+    attribute: azimuth
+    above: !input azimuth_end
+    id: azimuth_above_end
+
+conditions: []
+actions:
+  - alias: Gruppenspezifische Sonnenschutzsteuerung
+    choose:
+      # Activate the group
+      - conditions:
+          - condition: template
+            value_template: >
+              {{ state_attr('sun.sun', 'azimuth') | float > azimuth_start_var and
+                 state_attr('sun.sun', 'azimuth') | float < azimuth_end_var and
+                 state_attr('sun.sun', 'elevation') | float > min_elevation_var }}
+        sequence:
+          - alias: Sonnenschutz aktivieren
+            action: input_boolean.turn_on
+            target:
+              entity_id: !input sun_protection_boolean
+
+      # Deactivate the group
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: template
+                value_template: >
+                  {{ state_attr('sun.sun', 'azimuth') | float < azimuth_start_var or
+                     state_attr('sun.sun', 'azimuth') | float > azimuth_end_var }}
+              - condition: template
+                value_template: >
+                  {{ state_attr('sun.sun', 'elevation') | float < min_elevation_var }}
+        sequence:
+          - alias: Sonnenschutz deaktivieren
+            action: input_boolean.turn_off
+            target:
+              entity_id: !input sun_protection_boolean
