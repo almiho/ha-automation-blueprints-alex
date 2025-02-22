@@ -1,0 +1,75 @@
+blueprint:
+  name: Lichtsteuerung über Bewegungsmelder
+  description: >
+    Steuert Lichter basierend auf Bewegungserkennung von einem oder mehreren Bewegungssensoren.
+    Die Lichter schalten sich ein, wenn eine Bewegung erkannt wird, und nach einer bestimmten Dauer
+    ohne Bewegung wieder aus.
+
+  domain: automation
+  input:
+    motion_sensors:
+      name: Bewegungssensoren
+      description: Wählen Sie einen oder mehrere Bewegungssensoren aus.
+      selector:
+        entity:
+          multiple: true # Ermöglicht die Auswahl mehrerer Bewegungssensoren
+          filter:
+            domain: binary_sensor
+            device_class: motion
+
+    lights:
+      name: Lichter
+      description: Wählen Sie ein oder mehrere Lichter zur Steuerung aus.
+      selector:
+        entity:
+          multiple: true
+          filter:
+            domain: light
+
+    brightness:
+      name: Helligkeit
+      description: Legen Sie die Helligkeit der Lichter fest.
+      default: 80
+      selector:
+        number:
+          min: 1
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
+
+    wait_duration:
+      name: Wartezeit
+      description: Zeitspanne, die nach der letzten Bewegung gewartet wird, bevor die Lichter ausgeschaltet werden.
+      default: 00:01:00
+      selector:
+        duration:
+
+mode: restart
+trace:
+  stored_traces: 30
+
+triggers:
+  - trigger: state
+    alias: "Bewegung erkannt"
+    entity_id: !input motion_sensors
+    to: "on"
+
+actions:
+  - alias: "Lichter einschalten"
+    action: light.turn_on
+    target:
+      entity_id: !input lights
+    data:
+      brightness_pct: !input brightness
+
+  - wait_for_trigger:
+      - trigger: state
+        alias: "Warten auf keine Bewegung"
+        entity_id: !input motion_sensors
+        to: "off"
+        for: !input wait_duration
+
+  - alias: "Lichter ausschalten"
+    action: light.turn_off
+    target:
+      entity_id: !input lights
