@@ -1,0 +1,67 @@
+blueprint:
+  name: Temperature Sensor Monitor
+  description: Monitor a temperature sensor and log messages when thresholds are exceeded.
+  domain: automation
+  input:
+    temperature_sensor:
+      name: Temperature Sensor
+      description: The temperature sensor to monitor.
+      selector:
+        target:
+          entity:
+            domain: sensor
+    lower_threshold:
+      name: Lower Temperature Threshold
+      description: Log a message when the temperature drops below this value.
+      selector:
+        number:
+          min: -50
+          max: 50
+    upper_threshold:
+      name: Upper Temperature Threshold
+      description: Log a message when the temperature exceeds this value.
+      selector:
+        number:
+          min: -50
+          max: 50
+
+variables:
+  sensor_entity: !input temperature_sensor
+  sensor_name: "{{ state_attr(sensor_entity, 'friendly_name') | default(sensor_entity) }}"
+  lower_threshold: !input lower_threshold
+  upper_threshold: !input upper_threshold
+
+trigger:
+  - trigger: numeric_state
+    entity_id: !input temperature_sensor
+    below: !input lower_threshold
+    id: temperature_low
+
+  - trigger: numeric_state
+    entity_id: !input temperature_sensor
+    above: !input upper_threshold
+    id: temperature_high
+
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: temperature_low
+        sequence:
+          - action: logbook.log
+            data:
+              entity_id: "{{ sensor_entity }}"
+              name: Temperature Monitor
+              message: >-
+                Temperature of '{{ sensor_name }}' dropped below {{ lower_threshold }}°C, current value {{ states(sensor_entity) }}°C.
+
+      - conditions:
+          - condition: trigger
+            id: temperature_high
+        sequence:
+          - action: logbook.log
+            data:
+              entity_id: "{{ sensor_entity }}"
+              name: Temperature Monitor
+              message: >-
+                Temperature of '{{ sensor_name }}' exceeded {{ upper_threshold }}°C, current value {{ states(sensor_entity) }}°C.
